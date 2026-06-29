@@ -1,0 +1,11 @@
+[build]
+target = "riscv32imac-unknown-none-elf"
+
+[target.riscv32imac-unknown-none-elf]
+runner = "espflash flash --monitor --chip esp32c6"
+rustflags = [
+  # Frame pointers for esp-backtrace panic traces
+  "-C", "force-frame-pointers",
+  # esp-hal linker scripts; must come last
+  "-C", "link-arg=-Tlinkall.x",
+]
