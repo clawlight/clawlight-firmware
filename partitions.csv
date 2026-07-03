@@ -1,0 +1,19 @@
+# clawlight OTA partition table — two app slots plus the otadata bookkeeping
+# partition, so new firmware can be written to the *inactive* slot over serial
+# and activated on the next boot without a cable reflash. See
+# docs/esp32-serial-ota.md.
+#
+# The bootstrap flash (cargo run) lands in `factory`; the first OTA lands in
+# `ota_0`, the next in `ota_1`, then it ping-pongs. The running slot is never
+# the one being written, so a failed transfer can't touch live firmware.
+#
+# Layout fits 4 MB flash (ends at 0x310000 ≈ 3.06 MB). The firmware image is
+# well under 128 KB, so the 1 MB slots are generous headroom, not a floor —
+# shrink them if you ever need the space.
+#
+# Name,     Type, SubType, Offset,   Size,     Flags
+nvs,        data, nvs,     0x9000,   0x4000,
+otadata,    data, ota,     0xd000,   0x2000,
+factory,    app,  factory, 0x10000,  0x100000,
+ota_0,      app,  ota_0,   0x110000, 0x100000,
+ota_1,      app,  ota_1,   0x210000, 0x100000,

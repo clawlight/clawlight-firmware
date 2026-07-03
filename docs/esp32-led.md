@@ -1,7 +1,7 @@
 # ESP32 status LEDs
 
-clawlight mirrors the aggregate Claude Code session state to an ESP32 over USB
-serial, driving three LEDs on a breadboard:
+clawlight mirrors the aggregate Claude Code session state to a Seeed XIAO
+ESP32-C6 over USB serial, driving three LEDs:
 
 | LED    | State        | Meaning                          |
 |--------|--------------|----------------------------------|
@@ -16,10 +16,8 @@ menu bar daemon drives the board automatically once you enable LEDs (press
 `l` in the dashboard), and `clawlight led` runs the same driver in the
 foreground for debugging.
 
-Reference board: **MuseLab nanoESP32-C6** (ESP32-C6-WROOM-1, dual USB-C).
-The firmware in this repo ([`../src/main.rs`](../src/main.rs)) also builds for
-the Espressif ESP32-C6-DevKitC-1 and the Seeed XIAO ESP32-C6 — see
-[Other boards](#other-boards).
+Target board: **Seeed XIAO ESP32-C6**. The LEDs live on pads **D0 / D1 / D2**
+(GPIO0 / 1 / 2). The firmware is in [`../src/main.rs`](../src/main.rs).
 
 ## Boot behavior
 
@@ -60,48 +58,37 @@ The host resends the current state every 2 seconds as a heartbeat, so the
 board converges to the right state after a replug without any handshake. The
 firmware ignores unknown bytes, which keeps the protocol forward-compatible.
 
-## Board-specific design decisions (nanoESP32-C6)
+## Board-specific design decisions (XIAO ESP32-C6)
 
-The nanoESP32-C6 has **two USB-C ports**, and the choice matters:
+The XIAO has a **single USB-C port**, wired straight to the C6's built-in
+*USB-Serial-JTAG* peripheral (GPIO12/13 internally). One cable both flashes the
+firmware and carries the status bytes, and it enumerates with Espressif's
+vendor ID (`303a:1001`, shows up as `/dev/cu.usbmodem*` on macOS) — which is
+exactly what the clawlight daemon looks for when auto-detecting. There is no
+UART-bridge port and no wrong-port choice to make.
 
-- **`ESP32C6` port (next to the RST button)** — wired straight to the
-  C6's built-in *USB-Serial-JTAG* peripheral (GPIO12/13 internally). This
-  is the port to use: one cable both flashes the firmware and carries the
-  status bytes, and it enumerates with Espressif's vendor ID
-  (`303a:1001`, shows up as `/dev/cu.usbmodem*` on macOS), which is the
-  first thing the clawlight daemon looks for when auto-detecting.
-- **`CH343` port (next to the BOOT button)** — goes through a CH343P
-  USB-UART bridge into UART0 (GPIO16/17). It also works (clawlight
-  recognizes the WCH vendor ID `1a86` as a fallback), but it's a second
-  code path in the firmware and the bridge's auto-reset circuit can reset
-  the chip when the port is opened — or even during USB enumeration. We
-  don't use it.
+LED pin choice — **GPIO0 (red), GPIO1 (yellow), GPIO2 (green)** = pads
+**D0 / D1 / D2**:
 
-GPIO pin choice — **GPIO18 (red), GPIO19 (yellow), GPIO20 (green)**:
-
-- They sit **side by side on the bottom header**, two pins from a GND, so
-  the whole circuit fits in one short row of jumpers:
-  `5V · GND · 9 · 18 · 19 · 20 · …` (bottom row, USB end on the left).
+- They're **three adjacent pads** on one edge of the board, so the whole
+  circuit fits in one short row of jumpers.
 - They avoid every pin with a side job on the C6: GPIO4/5/8/9/15 are
-  strapping pins sampled at reset (8/9 pick the boot mode — pulling these
-  the wrong way bricks booting until rewired), GPIO12/13 are the native
-  USB data lines (reusing them kills the serial link), GPIO16/17 are
-  UART0 to the CH343, and GPIO24–30 are the flash inside the module.
+  strapping pins sampled at reset (8/9 pick the boot mode — pulling these the
+  wrong way bricks booting until rewired), GPIO12/13 are the native USB data
+  lines (reusing them kills the serial link), GPIO16/17 are UART0, and
+  GPIO24–30 are the flash inside the module.
 - Embedded nuance: on a microcontroller, *which* pin you pick is rarely
   arbitrary — most pins double as boot-configuration inputs, debug
   interfaces, or bus lines. "Plain GPIO with no reset-time meaning" is
   the thing you're shopping for.
 
-Other board facts worth knowing:
+Other XIAO facts worth knowing:
 
-- There's an onboard **WS2812 addressable RGB LED on GPIO8**. It could
-  show all three colors with zero wiring, but it needs a timing-critical
-  one-wire protocol driver (RMT peripheral) instead of three `set_high()`
-  calls, and GPIO8 is a strapping pin. Discrete LEDs are the better first
-  project; the WS2812 is a nice follow-up.
-- The BOOT button is GPIO9. If a bad flash ever makes the board
-  unresponsive over USB, hold BOOT, tap RST, and it re-enters the ROM
-  bootloader for recovery flashing.
+- There's an **onboard user LED on GPIO15** and an antenna RF switch on
+  GPIO3/GPIO14 — avoid all three if you ever expand the wiring.
+- The board has **BOOT** and **RESET** buttons. If a bad flash ever makes
+  the board unresponsive over USB, hold BOOT, tap RESET, release BOOT, and it
+  re-enters the ROM bootloader for recovery flashing.
 
 ## Parts (from a standard starter kit)
 
@@ -109,7 +96,8 @@ Other board facts worth knowing:
 - 3 × LED: red, yellow, green
 - 3 × 330 Ω resistor (220 Ω also fine; see current note below)
 - 4 × male-male jumper wires
-- nanoESP32-C6 + USB-C cable (plugged into the **ESP32C6** port)
+- Seeed XIAO ESP32-C6 + USB-C cable (solder on the included header pins to
+  breadboard it)
 
 ## Schematic
 
@@ -117,12 +105,12 @@ Each GPIO sources current through a resistor and LED to ground
 ("active high"):
 
 ```
-GPIO18 ───[330Ω]───►├─── ─┐         R = red LED
-                  red      │
-GPIO19 ───[330Ω]───►├─── ──┼─── GND
-                  yellow   │
-GPIO20 ───[330Ω]───►├─── ─┘
-                  green
+D0/GPIO0 ───[330Ω]───►├─── ─┐         R = red LED
+                    red      │
+D1/GPIO1 ───[330Ω]───►├─── ──┼─── GND
+                    yellow   │
+D2/GPIO2 ───[330Ω]───►├─── ─┘
+                    green
 
 ►├  = LED, long leg (anode) toward the resistor,
       short leg / flat side (cathode) toward GND
@@ -143,70 +131,39 @@ Electrical reasoning (the embedded nuances):
 
 ## Breadboard layout
 
-The three GPIOs and GND are nearly adjacent on the **bottom header row**
-(the row on the same side as the `CH343` silkscreen; USB ports to the
-left):
+On the XIAO, **D0 / D1 / D2** are the first three pads on one long edge
+(USB-C end at the top), and a **GND** pad sits on the opposite edge:
 
 ```
-nanoESP32-C6, bottom header (USB end → antenna end):
-  5V   GND  GPIO9 GPIO18 GPIO19 GPIO20  GPIO21 ...
-        │          │      │      │
-        │          │      │      │              breadboard
-        │          │      │      │     ┌─────────────────────────────┐
-        │          │      │      └─────│ d1 ──[330Ω]── d5  ►├ GREEN  │
-        │          │      └────────────│ c10──[330Ω]── c14 ►├ YELLOW │
-        │          └───────────────────│ b18──[330Ω]── b22 ►├ RED    │
-        │                              │      all cathodes → ( – )   │
-        └──────────────────────────────│ ( – ) blue ground rail      │
-                                       └─────────────────────────────┘
+Seeed XIAO ESP32-C6 (USB-C at top):
+
+   D0 ○─┐                    ┌─○ 5V
+   D1 ○─┼─┐                  ├─○ GND ──────┐
+   D2 ○─┼─┼─┐                ├─○ 3V3       │
+   D3 ○ │ │ │                ├─○ D10       │  breadboard
+   D4 ○ │ │ │                ├─○ D9        │
+   D5 ○ │ │ │                └─○ D8        │
+   D6 ○ │ │ │                                │
+        │ │ └──[330Ω]──►├ RED   (cathode →)──┤
+        │ └────[330Ω]──►├ YELLOW (cathode →)─┤
+        └──────[330Ω]──►├ GREEN  (cathode →)─┤
+                                    (–) rail ─┘
 ```
 
 Step by step:
 
-1. Seat the board across the breadboard's center channel (or next to the
-   breadboard with jumpers, if you haven't soldered headers).
-2. Jumper the board's **GND** (bottom row, 2nd pin from the USB end) to
-   the breadboard's blue **(–) rail**.
-3. For each LED: GPIO jumper → resistor → LED **long leg (anode)**;
+1. Solder the included header pins and seat the XIAO across the breadboard's
+   center channel.
+2. Jumper the board's **GND** pad to the breadboard's blue **(–) rail**.
+3. For each LED: pad jumper (D0/D1/D2) → resistor → LED **long leg (anode)**;
    LED **short leg (cathode)** → (–) rail.
 4. Nothing connects to 5V or 3V3 — the GPIOs themselves power the LEDs.
-
-## Other boards
-
-The firmware is the same for any ESP32-C6 — only the LED GPIOs differ,
-selected at compile time with a `board-*` cargo feature. Flashing,
-toolchain, and the host daemon are identical across boards (the daemon
-auto-detects by USB vendor ID, and every C6's native USB enumerates as
-Espressif `303a:1001`).
-
-| Board | Feature (default = nano) | LED pins | Wire to pads | USB port |
-|-------|--------------------------|----------|--------------|----------|
-| MuseLab nanoESP32-C6 | `board-nano` | GPIO18/19/20 | header 18/19/20 | `ESP32C6` (native) |
-| Espressif ESP32-C6-DevKitC-1 | `board-devkitc` | GPIO18/19/20 | header 18/19/20 | `USB` (native) |
-| Seeed XIAO ESP32-C6 | `board-xiao` | GPIO0/1/2 | **D0 / D1 / D2** | single USB-C (native) |
-
-Build/flash for a non-default board by disabling the default feature:
-
-```bash
-cargo run --release --no-default-features --features board-xiao
-```
-
-**XIAO ESP32-C6 specifics:** single USB-C port wired straight to the
-native USB-Serial-JTAG — no port choice, no bridge-chip reset quirk. If
-espflash can't auto-enter the bootloader, hold **BOOT**, plug in (or tap
-**RESET**), release BOOT. LEDs go on pads **D0/D1/D2** (red/yellow/green),
-which are three adjacent pads = GPIO0/1/2; the nearest **GND** pad is on
-the opposite rail. Avoid GPIO15 (onboard user LED) and GPIO3/GPIO14
-(antenna switch) if you ever expand the wiring.
 
 ## Usage
 
 ```bash
 # 1. Flash the firmware (see README.md / the flashing runbook)
-#    Default boards (nano / DevKitC):
 cargo run --release
-#    Seeed XIAO ESP32-C6:
-#    cargo run --release --no-default-features --features board-xiao
 
 # 2. Enable LEDs in clawlight: open the dashboard and press `l`.
 #    The menu bar daemon auto-detects the board and reconnects on replug.

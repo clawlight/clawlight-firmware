@@ -12,22 +12,19 @@ publish = false
 [dependencies]
 # "unstable" is required: the usb_serial_jtag driver is behind that flag.
 esp-hal = { version = "1.1.1", features = ["esp32c6", "unstable"] }
-# Embeds the app descriptor the ESP-IDF 2nd-stage bootloader expects.
+# Embeds the app descriptor the ESP-IDF 2nd-stage bootloader expects, and
+# provides the OTA partition/otadata API used by serial firmware updates.
 esp-bootloader-esp-idf = { version = "0.5.0", features = ["esp32c6"] }
+# Flash driver (implements embedded-storage) for writing the received image
+# into the inactive OTA slot.
+esp-storage = { version = "0.9.0", features = ["esp32c6"] }
+# Brings the Storage/ReadStorage traits into scope so we can .write()/.capacity()
+# the OTA partition. Version pinned to what esp-bootloader-esp-idf implements.
+embedded-storage = "0.3.1"
 esp-backtrace = { version = "0.19.0", features = ["esp32c6", "panic-handler", "println"] }
 esp-println = { version = "0.17.0", features = ["esp32c6"] }
 nb = "1.1"
 critical-section = "1.2"
-
-[features]
-# Select the target board's LED pins at compile time (enable exactly one).
-# Default builds for the nano/DevKitC pin set (GPIO18/19/20). For the
-# Seeed XIAO ESP32-C6 (GPIO0/1/2 = pads D0/D1/D2):
-#   cargo run --release --no-default-features --features board-xiao
-default = ["board-nano"]
-board-nano = []     # MuseLab nanoESP32-C6      -> GPIO18/19/20
-board-devkitc = []  # Espressif ESP32-C6-DevKitC -> GPIO18/19/20
-board-xiao = []     # Seeed XIAO ESP32-C6        -> GPIO0/1/2
 
 [profile.release]
 codegen-units = 1

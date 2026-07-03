@@ -1,12 +1,11 @@
 # clawlight-firmware
 
-Bare-metal Rust firmware (esp-hal, `no_std`) for the **ESP32-C6** that drives
-three status LEDs from [clawlight](https://github.com/clawlight/clawlight-cli).
-Builds for the MuseLab nanoESP32-C6 (default), the Espressif
-ESP32-C6-DevKitC-1, and the Seeed XIAO ESP32-C6 via `board-*` cargo features.
-Wiring, pin choices, per-board notes, and the serial protocol are documented
-in [`docs/esp32-led.md`](docs/esp32-led.md); flashing and recovery are in
-[`docs/esp32-flashing-runbook.md`](docs/esp32-flashing-runbook.md).
+Bare-metal Rust firmware (esp-hal, `no_std`) for the **Seeed XIAO ESP32-C6**
+that drives three status LEDs from
+[clawlight](https://github.com/clawlight/clawlight-cli). The LEDs live on pads
+**D0 / D1 / D2** (GPIO0 / 1 / 2). Wiring, pin choices, and the serial protocol
+are documented in [`docs/esp32-led.md`](docs/esp32-led.md); flashing and
+recovery are in [`docs/esp32-flashing-runbook.md`](docs/esp32-flashing-runbook.md).
 
 ## What it does
 
@@ -49,21 +48,21 @@ cargo install espflash --locked
 
 ## Flash
 
-Plug the USB-C cable into the port labeled **ESP32C6** (next to the RST
-button) — that's the chip's native USB-Serial-JTAG, used for both
-flashing and the status protocol. The other port (CH343) is a plain
-UART bridge this firmware doesn't listen on.
+Plug the XIAO's single USB-C port into your Mac — it's wired straight to the
+chip's native USB-Serial-JTAG, used for both flashing and the status protocol.
 
 ```bash
 cargo run --release   # builds, flashes, and opens a serial monitor
-
-# Seeed XIAO ESP32-C6 (LEDs on GPIO0/1/2 = pads D0/D1/D2):
-cargo run --release --no-default-features --features board-xiao
 ```
 
 (`cargo run` invokes `espflash flash --monitor` via the runner in
 `.cargo/config.toml`. Ctrl-C exits the monitor; the firmware keeps
-running.)
+running.) From the clawlight-cli repo, `scripts/flash.sh` wraps this into a
+one-command build-and-flash.
+
+The XIAO's auto-reset into download mode can be unreliable; if `espflash`
+can't sync, hold **BOOT**, tap **RESET**, release BOOT, then retry — see
+[the flashing runbook](docs/esp32-flashing-runbook.md).
 
 On boot you'll see the lamp test: all three LEDs on together for 2 s, then
 the board holds all-on until the clawlight daemon connects and the LEDs
@@ -81,7 +80,7 @@ download mode and `espflash` can flash it again.
 - `#![no_std]`/`#![no_main]`: there's no OS — no heap, no `println!`,
   no exit. `main` returns `!` because there is nowhere to return to.
 - `esp_hal::init()` hands out a `Peripherals` struct of singletons;
-  ownership of `peripherals.GPIO18` moving into `Output::new` is how
+  ownership of `peripherals.GPIO0` moving into `Output::new` is how
   Rust guarantees at compile time that nothing else can drive that pin.
 - The watchdog timers (which reboot the chip if firmware wedges) are
   disabled by `esp_hal::init()`'s default config, so a simple poll loop

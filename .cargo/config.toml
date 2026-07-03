@@ -2,7 +2,10 @@
 target = "riscv32imac-unknown-none-elf"
 
 [target.riscv32imac-unknown-none-elf]
-runner = "espflash flash --monitor --chip esp32c6"
+# `--partition-table` installs the two-slot OTA layout (see partitions.csv) so
+# the bootstrap image lands in `factory` and later serial OTA updates can flip
+# between ota_0/ota_1. Drop the flag and you're back to a single-app flash.
+runner = "espflash flash --monitor --chip esp32c6 --partition-table partitions.csv"
 rustflags = [
   # Frame pointers for esp-backtrace panic traces
   "-C", "force-frame-pointers",

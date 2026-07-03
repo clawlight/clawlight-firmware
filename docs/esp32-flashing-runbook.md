@@ -1,7 +1,7 @@
 # Runbook — flashing the clawlight status-LED firmware
 
-How to build and flash new firmware to the ESP32, and how to recover from
-the failures we've actually hit. The firmware is in this repo
+How to build and flash new firmware to the Seeed XIAO ESP32-C6, and how to
+recover from the failures we've actually hit. The firmware is in this repo
 ([`../src/main.rs`](../src/main.rs)); wiring and design are in
 [`esp32-led.md`](esp32-led.md).
 
@@ -14,9 +14,8 @@ the failures we've actually hit. The firmware is in this repo
 
 # 2. Build + flash + monitor (from this repo)
 cd ~/Developer/clawlight-firmware
-cargo run --release          # nano / DevKitC (default); Ctrl-C exits the monitor
-# XIAO ESP32-C6 instead:
-#   cargo run --release --no-default-features --features board-xiao
+cargo run --release          # Ctrl-C exits the monitor
+# Or, from the clawlight-cli repo, one command: scripts/flash.sh
 
 # 3. Re-enable LEDs: press `l` again in the dashboard. The daemon
 #    reconnects and the board switches from all-on to live status.
@@ -33,14 +32,8 @@ restarted after.
 
 - Use a **data** USB-C cable, not a charge-only one. If unsure, use the
   cable that last flashed successfully.
-- Plug into the port wired to the **native USB-Serial-JTAG**:
-  - nanoESP32-C6 → the connector silkscreened **`ESP32C6`** (next to RST).
-  - Espressif ESP32-C6-DevKitC-1 → the connector silkscreened **`USB`**
-    (the other one, `UART`, goes through a bridge chip and also works).
-  - Seeed XIAO ESP32-C6 → its single USB-C port (native; no wrong choice).
-- Pick the matching board feature when building (default is nano/DevKitC;
-  XIAO needs `--no-default-features --features board-xiao`). Wrong feature
-  = LEDs wired to the wrong pins, not a flash failure.
+- Plug the XIAO's single USB-C port into your Mac. It's wired straight to the
+  native USB-Serial-JTAG — there's only one port and no wrong choice.
 - Confirm the board enumerated:
   ```bash
   ls /dev/cu.usbmodem*
@@ -128,9 +121,9 @@ terminal" if run non-interactively).
 
 ## Entering the bootloader manually
 
-Flashing needs the chip in ROM download mode. Boards with reliable
-auto-reset (nano, DevKitC) enter it on their own when espflash connects.
-The **XIAO ESP32-C6 usually does not**, so force it:
+Flashing needs the chip in ROM download mode. The **XIAO ESP32-C6's
+auto-reset is unreliable** and often doesn't enter it on its own when espflash
+connects, so force it:
 
 1. **Press and hold BOOT.**
 2. While holding BOOT, **tap RESET** once. (No RESET handy, or it's
@@ -162,7 +155,6 @@ resets the chip back into the app automatically.
 | `Device or resource busy` | Another program holds the port — almost always the clawlight LED driver (menu bar daemon or a foreground `clawlight led`). | Turn LEDs off in the dashboard (`l`), confirm with `lsof /dev/cu.usbmodem*`, reflash. A stray foreground driver: `pkill -f "clawlight led"`. |
 | `espflash::timeout` / "Timeout while running command" | Port exists but the chip never answered the sync — it isn't in download mode. Common on the XIAO (weak auto-reset). | [Enter the bootloader manually](#entering-the-bootloader-manually) (hold BOOT, tap RESET, release), then reflash. If multiple boards are plugged in, espflash may be hitting the wrong one — leave only the target attached. |
 | `not a terminal` (dialoguer error) | espflash needs to show a port picker but isn't attached to a TTY. | Pass `--port /dev/cu.usbmodem101` explicitly. |
-| Board flashes, then "goes away" / resets | Plugged into the **CH343/UART** port, whose auto-reset circuit toggles the chip on enumeration. | Move the cable to the native **USB / ESP32C6** port. |
 | Picked `tty.*` and it hangs on open | `tty.*` (dial-in) blocks waiting for carrier-detect. | Always use the `cu.*` (callout) device on macOS. |
 | Flash OK but USB port dead afterward (bad firmware) | Firmware crashed early or repurposed the USB pins (GPIO12/13). | Recovery: hold **BOOT**, tap **RST**, release BOOT → ROM bootloader, then reflash. |
 
