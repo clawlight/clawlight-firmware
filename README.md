@@ -57,8 +57,9 @@ cargo run --release   # builds, flashes, and opens a serial monitor
 
 (`cargo run` invokes `espflash flash --monitor` via the runner in
 `.cargo/config.toml`. Ctrl-C exits the monitor; the firmware keeps
-running.) From the clawlight-cli repo, `scripts/flash.sh` wraps this into a
-one-command build-and-flash.
+running.) `scripts/flash.sh` in this repo wraps this into a one-command
+build-and-flash — it also pauses the clawlight LED daemon so it releases the
+serial port, and walks you through the BOOT/RESET dance on a failed sync.
 
 The XIAO's auto-reset into download mode can be unreliable; if `espflash`
 can't sync, hold **BOOT**, tap **RESET**, release BOOT, then retry — see

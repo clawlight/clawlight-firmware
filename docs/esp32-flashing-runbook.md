@@ -15,7 +15,7 @@ recover from the failures we've actually hit. The firmware is in this repo
 # 2. Build + flash + monitor (from this repo)
 cd ~/Developer/clawlight-firmware
 cargo run --release          # Ctrl-C exits the monitor
-# Or, from the clawlight-cli repo, one command: scripts/flash.sh
+# Or, one command from this repo: scripts/flash.sh
 
 # 3. Re-enable LEDs: press `l` again in the dashboard. The daemon
 #    reconnects and the board switches from all-on to live status.
